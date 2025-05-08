@@ -1,7 +1,8 @@
 class Booking {
   final String id;
   final String userId;
-  final String carNo;
+  final String itemId; // Changed from carNo to itemId to be more generic
+  final String rentalType; // 'car' or 'house'
   final DateTime startDate;
   final DateTime endDate;
   final double price;
@@ -14,7 +15,8 @@ class Booking {
   Booking({
     required this.id,
     required this.userId,
-    required this.carNo,
+    required this.itemId,
+    required this.rentalType,
     required this.startDate,
     required this.endDate,
     required this.price,

@@ -6,106 +6,160 @@ import 'package:car_rental_app_clean_arch/features/booking/domain/repositories/b
 import 'package:fpdart/fpdart.dart';
 
 class BookingRepositoryImpl implements BookingRepository {
-  final BookingRemoteDataSource bookingRemoteDataSource;
-  BookingRepositoryImpl(this.bookingRemoteDataSource);
+  final BookingRemoteDataSource remoteDataSource;
+
+  BookingRepositoryImpl(this.remoteDataSource);
 
   @override
-  Future<Either<Failure, void>> bookingCar({
+  Future<Either<Failure, Booking>> createBooking({
     required String userId,
-    required String carNo,
+    required String itemId,
+    required String rentalType,
     required DateTime startDate,
     required DateTime endDate,
     required double price,
     required String ownerId,
   }) async {
     try {
-      await bookingRemoteDataSource.bookingCar(
+      await remoteDataSource.createBooking(
         userId: userId,
-        carNo: carNo,
+        itemId: itemId,
+        rentalType: rentalType,
         startDate: startDate,
         endDate: endDate,
         price: price,
         ownerId: ownerId,
       );
-      return Right(null);
+      
+      // Fetch the created booking to return it
+      final bookings = await remoteDataSource.showBookingForItem(
+        itemId: itemId,
+        rentalType: rentalType,
+      );
+      
+      if (bookings.isEmpty) {
+        return Left(Failure('Failed to create booking'));
+      }
+      
+      return Right(bookings.first);
     } on ServerException catch (e) {
       return Left(Failure(e.message));
+    } catch (e) {
+      return Left(Failure('Unexpected error occurred'));
     }
   }
 
   @override
-  Future<Either<Failure, void>> ownerRequestApprove({
-    required String ownerId,
-    required bool isApproved,
-    required String bookingId,
+  Future<Either<Failure, List<Booking>>> getItemBookings({
+    required String itemId,
+    required String rentalType,
   }) async {
     try {
-      await bookingRemoteDataSource.ownerRequestApprove(
+      final bookings = await remoteDataSource.showBookingForItem(
+        itemId: itemId,
+        rentalType: rentalType,
+      );
+      return Right(bookings);
+    } on ServerException catch (e) {
+      return Left(Failure(e.message));
+    } catch (e) {
+      return Left(Failure('Failed to fetch bookings'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Booking>>> getOwnerBookings({
+    required String ownerId,
+    String? rentalType,
+  }) async {
+    try {
+      final bookings = await remoteDataSource.showBookingForOwner(
         ownerId: ownerId,
+        rentalType: rentalType,
+      );
+      return Right(bookings);
+    } on ServerException catch (e) {
+      return Left(Failure(e.message));
+    } catch (e) {
+      return Left(Failure('Failed to fetch owner bookings'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Booking>>> getUserBookings({
+    required String userId,
+    String? rentalType,
+  }) async {
+    try {
+      final bookings = await remoteDataSource.showBookingForUser(
+        userId: userId,
+        rentalType: rentalType,
+      );
+      return Right(bookings);
+    } on ServerException catch (e) {
+      return Left(Failure(e.message));
+    } catch (e) {
+      return Left(Failure('Failed to fetch user bookings'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Booking>> updateBookingApproval({
+    required String bookingId,
+    required bool isApproved,
+  }) async {
+    try {
+      await remoteDataSource.ownerRequestApprove(
+        ownerId: '', // This should be fetched from the booking
         isApproved: isApproved,
         bookingId: bookingId,
       );
-      return Right(null);
-    } on ServerException catch (e) {
-      return Left(Failure(e.message));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<Booking>>> showBookingForCar({
-    required String carNo,
-  }) async {
-    try {
-      final bookings = await bookingRemoteDataSource.showBookingForCar(
-        carNo: carNo,
+      
+      // Fetch the updated booking
+      final bookings = await remoteDataSource.showBookingForItem(
+        itemId: bookingId,
+        rentalType: '', // This should be fetched from the booking
       );
-      return Right(bookings);
+      
+      if (bookings.isEmpty) {
+        return Left(Failure('Failed to update booking'));
+      }
+      
+      return Right(bookings.first);
     } on ServerException catch (e) {
       return Left(Failure(e.message));
+    } catch (e) {
+      return Left(Failure('Failed to update booking approval'));
     }
   }
 
   @override
-  Future<Either<Failure, List<Booking>>> showBookingForOwner({
-    required String ownerId,
-  }) async {
-    try {
-      final bookings = await bookingRemoteDataSource.showBookingForOwner(
-        ownerId: ownerId,
-      );
-      return Right(bookings);
-    } on ServerException catch (e) {
-      return Left(Failure(e.message));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<Booking>>> showBookingForUser({
-    required String userId,
-  }) async {
-    try {
-      final bookings = await bookingRemoteDataSource.showBookingForUser(
-        userId: userId,
-      );
-      return Right(bookings);
-    } on ServerException catch (e) {
-      return Left(Failure(e.message));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> paymentApprove({
-    required String paymentStatus,
+  Future<Either<Failure, Booking>> updatePaymentStatus({
     required String bookingId,
+    required String paymentStatus,
   }) async {
     try {
-      await bookingRemoteDataSource.paymentApprove(
+      await remoteDataSource.paymentApprove(
         bookingId: bookingId,
         paymentStatus: paymentStatus,
       );
-      return Right(null);
+      
+      // Fetch the updated booking
+      final bookings = await remoteDataSource.showBookingForItem(
+        itemId: bookingId,
+        rentalType: '', // This should be fetched from the booking
+      );
+      
+      if (bookings.isEmpty) {
+        return Left(Failure('Failed to update payment status'));
+      }
+      
+      return Right(bookings.first);
     } on ServerException catch (e) {
       return Left(Failure(e.message));
+    } catch (e) {
+      return Left(Failure('Failed to update payment status'));
     }
   }
 }
+

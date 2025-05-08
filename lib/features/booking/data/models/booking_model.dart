@@ -3,7 +3,8 @@ import 'package:car_rental_app_clean_arch/features/booking/domain/entites/bookin
 class BookingModel extends Booking {
   BookingModel({
     required super.userId,
-    required super.carNo,
+    required super.itemId,
+    required super.rentalType,
     required super.startDate,
     required super.endDate,
     required super.price,
@@ -14,20 +15,23 @@ class BookingModel extends Booking {
     required super.paymentStatus,
   });
 
-  BookingModel copyWith(
-      {String? userId,
-      String? carNo,
-      DateTime? startDate,
-      DateTime? endDate,
-      double? price,
-      String? status,
-      bool? isApproved,
-      String? ownerId,
-      String? id,
-      String? paymentStatus}) {
+  BookingModel copyWith({
+    String? userId,
+    String? itemId,
+    String? rentalType,
+    DateTime? startDate,
+    DateTime? endDate,
+    double? price,
+    String? status,
+    bool? isApproved,
+    String? ownerId,
+    String? id,
+    String? paymentStatus
+  }) {
     return BookingModel(
       userId: userId ?? this.userId,
-      carNo: carNo ?? this.carNo,
+      itemId: itemId ?? this.itemId,
+      rentalType: rentalType ?? this.rentalType,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       price: price ?? this.price,
@@ -42,7 +46,8 @@ class BookingModel extends Booking {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'userId': userId,
-      'carNo': carNo,
+      'itemId': itemId,
+      'rentalType': rentalType,
       'startDate': startDate.millisecondsSinceEpoch,
       'endDate': endDate.millisecondsSinceEpoch,
       'price': price,
@@ -57,9 +62,9 @@ class BookingModel extends Booking {
   factory BookingModel.fromJson(Map<String, dynamic> map) {
     return BookingModel(
       userId: map['userId'] as String? ?? '',
-      carNo: map['carNo'] as String? ?? '',
-      startDate:
-          DateTime.fromMillisecondsSinceEpoch(map['startDate'] as int? ?? 0),
+      itemId: map['itemId'] as String? ?? '',
+      rentalType: map['rentalType'] as String? ?? 'car', // Default to 'car' for backward compatibility
+      startDate: DateTime.fromMillisecondsSinceEpoch(map['startDate'] as int? ?? 0),
       endDate: DateTime.fromMillisecondsSinceEpoch(map['endDate'] as int? ?? 0),
       price: (map['price'] is int)
           ? (map['price'] as int).toDouble()

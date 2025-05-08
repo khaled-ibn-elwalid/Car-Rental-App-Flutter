@@ -3,35 +3,44 @@ import 'package:car_rental_app_clean_arch/features/booking/domain/entites/bookin
 import 'package:fpdart/fpdart.dart';
 
 abstract interface class BookingRepository {
-  Future<Either<Failure, void>> bookingCar({
+  // Create a new booking
+  Future<Either<Failure, Booking>> createBooking({
     required String userId,
-    required String carNo,
+    required String itemId,
+    required String rentalType,
     required DateTime startDate,
     required DateTime endDate,
     required double price,
     required String ownerId,
   });
 
-  Future<Either<Failure, List<Booking>>> showBookingForOwner({
+  // Get bookings for an owner with optional type filter
+  Future<Either<Failure, List<Booking>>> getOwnerBookings({
     required String ownerId,
+    String? rentalType,
   });
 
-  Future<Either<Failure, List<Booking>>> showBookingForCar({
-    required String carNo,
+  // Get bookings for a specific item
+  Future<Either<Failure, List<Booking>>> getItemBookings({
+    required String itemId,
+    required String rentalType,
   });
 
-  Future<Either<Failure, List<Booking>>> showBookingForUser({
+  // Get bookings for a user with optional type filter
+  Future<Either<Failure, List<Booking>>> getUserBookings({
     required String userId,
+    String? rentalType,
   });
 
-  Future<Either<Failure, void>> ownerRequestApprove({
-    required String ownerId,
+  // Update booking approval status
+  Future<Either<Failure, Booking>> updateBookingApproval({
+    required String bookingId,
     required bool isApproved,
-    required String bookingId,
-  }); 
+  });
 
-  Future<Either<Failure, void>>paymentApprove({
-    required String paymentStatus,
+  // Update booking payment status
+  Future<Either<Failure, Booking>> updatePaymentStatus({
     required String bookingId,
+    required String paymentStatus,
   });
 }

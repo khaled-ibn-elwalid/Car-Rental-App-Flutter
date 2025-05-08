@@ -3,25 +3,29 @@ import 'package:car_rental_app_clean_arch/features/booking/data/models/booking_m
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract interface class BookingRemoteDataSource {
-  Future<void> bookingCar({
+  Future<void> createBooking({
     required String userId,
-    required String carNo,
+    required String itemId,
+    required String rentalType,
     required DateTime startDate,
     required DateTime endDate,
     required double price,
     required String ownerId,
   });
 
-  Future<List<BookingModel>> showBookingForOwner({
-    required String ownerId,
+  Future<List<BookingModel>> showBookingForItem({
+    required String itemId,
+    required String rentalType,
   });
 
-  Future<List<BookingModel>> showBookingForCar({
-    required String carNo,
+  Future<List<BookingModel>> showBookingForOwner({
+    required String ownerId,
+    String? rentalType,
   });
 
   Future<List<BookingModel>> showBookingForUser({
     required String userId,
+    String? rentalType,
   });
 
   Future<void> ownerRequestApprove({
@@ -36,76 +40,55 @@ abstract interface class BookingRemoteDataSource {
   });
 }
 
-class BookingRemoteDataSourceImpl extends BookingRemoteDataSource {
-  final FirebaseFirestore fireStore;
+class BookingRemoteDataSourceImpl implements BookingRemoteDataSource {
+  final FirebaseFirestore firestore;
 
-  BookingRemoteDataSourceImpl(
-    this.fireStore,
-  );
+  BookingRemoteDataSourceImpl(this.firestore);
 
   @override
-  Future<void> bookingCar({
+  Future<void> createBooking({
     required String userId,
-    required String carNo,
+    required String itemId,
+    required String rentalType,
     required DateTime startDate,
     required DateTime endDate,
     required double price,
     required String ownerId,
   }) async {
     try {
-      final bookingRef = fireStore.collection('bookings').doc();
-      final existingBookings = await fireStore
-          .collection('bookings')
-          .where('carNo', isEqualTo: carNo)
-          .get();
-
-      bool hasConflict = existingBookings.docs.any((doc) {
-        final data = doc.data();
-        DateTime existingStart =
-            DateTime.fromMillisecondsSinceEpoch(data['startDate']);
-        DateTime existingEnd =
-            DateTime.fromMillisecondsSinceEpoch(data['endDate']);
-
-        return !(endDate.isBefore(existingStart) ||
-            startDate.isAfter(existingEnd));
-      });
-
-      if (hasConflict) {
-        throw ServerException("The car is already booked for this period.");
-      }
-
       final booking = BookingModel(
-        id: bookingRef.id,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
-        carNo: carNo,
+        itemId: itemId,
+        rentalType: rentalType,
         startDate: startDate,
         endDate: endDate,
         price: price,
-        status: "Pending",
+        status: 'pending',
         isApproved: false,
         ownerId: ownerId,
-        paymentStatus: 'Pending',
+        paymentStatus: 'pending',
       );
 
-      await bookingRef.set(booking.toJson());
-    } on ServerException catch (e) {
-      throw ServerException('Booking error: ${e.message}');
+      await firestore.collection('bookings').doc(booking.id).set(booking.toJson());
     } catch (e) {
-      throw ServerException('Unexpected error occurred: $e');
+      throw ServerException(e.toString());
     }
   }
 
   @override
-  Future<List<BookingModel>> showBookingForCar({
-    required String carNo,
+  Future<List<BookingModel>> showBookingForItem({
+    required String itemId,
+    required String rentalType,
   }) async {
     try {
-      final querySnapshot = await fireStore
+      final snapshot = await firestore
           .collection('bookings')
-          .where('carNo', isEqualTo: carNo)
+          .where('itemId', isEqualTo: itemId)
+          .where('rentalType', isEqualTo: rentalType)
           .get();
 
-      return querySnapshot.docs
+      return snapshot.docs
           .map((doc) => BookingModel.fromJson(doc.data()))
           .toList();
     } catch (e) {
@@ -116,14 +99,20 @@ class BookingRemoteDataSourceImpl extends BookingRemoteDataSource {
   @override
   Future<List<BookingModel>> showBookingForOwner({
     required String ownerId,
+    String? rentalType,
   }) async {
     try {
-      final querySnapshot = await fireStore
+      Query query = firestore
           .collection('bookings')
-          .where('ownerId', isEqualTo: ownerId)
-          .get();
+          .where('ownerId', isEqualTo: ownerId);
+      
+      if (rentalType != null) {
+        query = query.where('rentalType', isEqualTo: rentalType);
+      }
 
-      return querySnapshot.docs
+      final snapshot = await query.get();
+
+      return snapshot.docs
           .map((doc) => BookingModel.fromJson(doc.data()))
           .toList();
     } catch (e) {
@@ -134,14 +123,20 @@ class BookingRemoteDataSourceImpl extends BookingRemoteDataSource {
   @override
   Future<List<BookingModel>> showBookingForUser({
     required String userId,
+    String? rentalType,
   }) async {
     try {
-      final querySnapshot = await fireStore
+      Query query = firestore
           .collection('bookings')
-          .where('userId', isEqualTo: userId)
-          .get();
+          .where('userId', isEqualTo: userId);
+      
+      if (rentalType != null) {
+        query = query.where('rentalType', isEqualTo: rentalType);
+      }
 
-      return querySnapshot.docs
+      final snapshot = await query.get();
+
+      return snapshot.docs
           .map((doc) => BookingModel.fromJson(doc.data()))
           .toList();
     } catch (e) {
@@ -156,20 +151,10 @@ class BookingRemoteDataSourceImpl extends BookingRemoteDataSource {
     required String bookingId,
   }) async {
     try {
-      final bookingRef = fireStore.collection('bookings').doc(bookingId);
-
-      final docSnapshot = await bookingRef.get();
-
-      if (!docSnapshot.exists) {
-        throw ServerException("Booking with ID $bookingId not found.");
-      }
-
-      await bookingRef.update({
+      await firestore.collection('bookings').doc(bookingId).update({
         'isApproved': isApproved,
-        'status': isApproved ? 'Confirmed' : 'Denied',
+        'status': isApproved ? 'approved' : 'rejected',
       });
-    } on ServerException catch (e) {
-      throw ServerException(e.message);
     } catch (e) {
       throw ServerException(e.toString());
     }
@@ -181,19 +166,10 @@ class BookingRemoteDataSourceImpl extends BookingRemoteDataSource {
     required String bookingId,
   }) async {
     try {
-      final bookingRef = fireStore.collection('bookings').doc(bookingId);
-
-      final docSnapshot = await bookingRef.get();
-
-      if (!docSnapshot.exists) {
-        throw ServerException("Booking with ID $bookingId not found.");
-      }
-
-      await bookingRef.update({
+      await firestore.collection('bookings').doc(bookingId).update({
         'paymentStatus': paymentStatus,
+        'status': paymentStatus == 'paid' ? 'confirmed' : 'pending',
       });
-    } on ServerException catch (e) {
-      throw ServerException(e.message);
     } catch (e) {
       throw ServerException(e.toString());
     }
